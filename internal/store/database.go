@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/fs"
 
@@ -54,6 +55,26 @@ func MigrateFS(migrationsFS fs.FS, dir string) error {
 	}
 
 	err = goose.Up(sqlDb, dir)
+	if err != nil {
+		return fmt.Errorf("goose up: %w", err)
+	}
+
+	return nil
+}
+
+// Migrate runs migrations on the provided database connection using the migrations FS
+func Migrate(db *sql.DB, migrationsFS fs.FS, dir string) error {
+	goose.SetBaseFS(migrationsFS)
+	defer func() {
+		goose.SetBaseFS(nil)
+	}()
+
+	err := goose.SetDialect("postgres")
+	if err != nil {
+		return fmt.Errorf("migrate: set dialect: %w", err)
+	}
+
+	err = goose.Up(db, dir)
 	if err != nil {
 		return fmt.Errorf("goose up: %w", err)
 	}
